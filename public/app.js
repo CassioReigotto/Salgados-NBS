@@ -93,6 +93,20 @@ const app = {
         document.getElementById('main-header').style.display = 'none';
         this.renderLogin();
     },
+    const statusLabel = (status) => {
+    const labels = {
+        OPEN: 'Aberto',
+        CLOSED: 'Fechado',
+        AWAITING_PAYMENT: 'Aguardando pagamento',
+        PLACED: 'Pedido realizado',
+        RECEIVED: 'Recebido',
+        CANCELLED: 'Cancelado',
+        PAID: 'Pago',
+        PENDING: 'Pendente'
+    };
+
+    return labels[status] || status;
+};
 
     // --- SISTEMA DE MODAL ---
     showModal(title, bodyHtml, onSubmit) {
@@ -226,7 +240,7 @@ const app = {
             for (let o of orders) {
                 html += `<div class="card flex-between" style="cursor:pointer;" onclick="app.renderOrderUser('${o.id}')">
                     <strong>${esc(o.title)}</strong>
-                    <span class="badge ${esc(o.status)}">${esc(o.status)}</span>
+                    <span class="badge ${esc(statusLabel(o.status))}">${esc(statusLabel(o.status))}</span>
                 </div>`;
             }
             html += `</div>`;
@@ -278,7 +292,7 @@ const app = {
                 <button class="btn-sm btn-secondary" onclick="app.renderUserDashboard()" style="margin-bottom:1rem;">← Voltar</button>
                 <div class="card">
                     <h3>${esc(order.title)}</h3>
-                    <p style="margin-top:0.5rem">Status: <span class="badge ${esc(order.status)}">${esc(order.status)}</span></p>
+                    <p style="margin-top:0.5rem">Status: <span class="badge ${esc(statusLabel(order.status))}">${esc(statusLabel(order.status))}</span></p>
                 </div>`;
 
             if (isOpen) {
@@ -325,7 +339,7 @@ const app = {
                     <div class="flex-between" style="margin-top:0.5rem"><span>Taxa de Entrega:</span> <span>${formatMoney(myOrder.applied_delivery_fee_cents)}</span></div>
                     <h3 class="flex-between" style="margin-top:1rem"><span>Total:</span> <span>${formatMoney(sub + myOrder.applied_delivery_fee_cents)}</span></h3>
                     <br>
-                    <p>Pagamento: <span class="badge ${esc(myOrder.payment_status)}">${esc(myOrder.payment_status)}</span></p>
+                    <p>Pagamento: <span class="badge ${esc(statusLabel(myOrder.payment_status))}">${esc(statusLabel(myOrder.payment_status))}</span></p>
                     `;
                 }
                 html += `</div>`;
@@ -625,8 +639,8 @@ const app = {
                 </div>
             </div>
 
-            <span class="badge ${esc(o.status)}">
-                ${esc(o.status)}
+            <span class="badge ${esc(statusLabel(o.status))}">
+                ${esc(statusLabel(o.status))}
             </span>
 
         </div>
@@ -669,7 +683,7 @@ const app = {
             
             html += `<div class="card">
                 <h3>PEDIDO: ${esc(order.title)}</h3><br>
-                <p>Status: <span class="badge ${esc(order.status)}">${esc(order.status)}</span></p>
+                <p>Status: <span class="badge ${esc(statusLabel(order.status))}">${esc(statusLabel(order.status))}</span></p>
                 <p style="margin-top:0.5rem">Taxa Informada: ${formatMoney(order.delivery_fee_cents)}</p>
             </div>`;
 
