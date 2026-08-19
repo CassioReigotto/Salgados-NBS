@@ -132,23 +132,59 @@ const app = {
     this.stopPolling();
 
     const html = `
-        <div class="container" style="max-width: 400px; margin-top: 2rem;">
-            <div class="card">
-                <h2>Entrar</h2><br>
+        <div class="login-container">
+            <div class="login-card">
 
-                <form onsubmit="event.preventDefault(); app.doLogin();">
-                    <input type="text" id="login-user" placeholder="Username" autocomplete="username">
+                <div class="login-logo">
+                    <span class="emoji">🥟</span>
+                    <h2>Salgados</h2>
+                    <p>Faça login para continuar</p>
+                </div>
 
-                    <input type="password" id="login-pass" placeholder="Senha" autocomplete="current-password">
+                <input
+                    type="text"
+                    id="login-user"
+                    placeholder="Usuário"
+                    autocomplete="username"
+                >
 
-                    <button type="submit" class="btn-primary">Acessar</button>
+                <input
+                    type="password"
+                    id="login-pass"
+                    placeholder="Senha"
+                    autocomplete="current-password"
+                >
 
-                    <div id="login-error" class="error-text"></div>
-                </form>
+                <button
+                    class="btn-primary"
+                    onclick="app.doLogin()"
+                >
+                    Entrar
+                </button>
+
+                <div id="login-error" class="error-text"></div>
+
             </div>
-        </div>`;
+        </div>
+    `;
 
     document.getElementById('app-container').innerHTML = html;
+
+    // Permite pressionar ENTER para fazer login
+    const loginUser = document.getElementById('login-user');
+    const loginPass = document.getElementById('login-pass');
+
+    const handleEnter = (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.doLogin();
+        }
+    };
+
+    loginUser.addEventListener('keydown', handleEnter);
+    loginPass.addEventListener('keydown', handleEnter);
+
+    loginUser.focus();
 },
 
     async doLogin() {
