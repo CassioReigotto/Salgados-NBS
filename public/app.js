@@ -19,6 +19,21 @@ const parseCurrencyToCents = (val) => {
     return Math.round(parsed * 100);
 };
 
+    const statusLabel = (status) => {
+    const labels = {
+        OPEN: 'Aberto',
+        CLOSED: 'Fechado',
+        AWAITING_PAYMENT: 'Aguardando pagamento',
+        PLACED: 'Pedido realizado',
+        RECEIVED: 'Recebido',
+        CANCELLED: 'Cancelado',
+        PAID: 'Pago',
+        PENDING: 'Pendente'
+    };
+
+    return labels[status] || status;
+};
+
 const app = {
     user: null,
     cart: {},
@@ -93,20 +108,7 @@ const app = {
         document.getElementById('main-header').style.display = 'none';
         this.renderLogin();
     },
-    const statusLabel = (status) => {
-    const labels = {
-        OPEN: 'Aberto',
-        CLOSED: 'Fechado',
-        AWAITING_PAYMENT: 'Aguardando pagamento',
-        PLACED: 'Pedido realizado',
-        RECEIVED: 'Recebido',
-        CANCELLED: 'Cancelado',
-        PAID: 'Pago',
-        PENDING: 'Pendente'
-    };
 
-    return labels[status] || status;
-};
 
     // --- SISTEMA DE MODAL ---
     showModal(title, bodyHtml, onSubmit) {
