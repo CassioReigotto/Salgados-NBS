@@ -505,3 +505,189 @@ hr {
         align-items: center;
     }
 }
+/* =========================================================
+   ADMIN DASHBOARD — PAINEL
+   ========================================================= */
+
+.container-wide {
+    width: calc(100% - 40px);
+    max-width: 1100px;
+    margin: 32px auto;
+}
+
+/* Cabeçalho */
+
+.admin-header {
+    margin-bottom: 24px;
+}
+
+.admin-header h2 {
+    margin: 0;
+    color: var(--primary);
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.admin-header p {
+    margin: 7px 0 0;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+/* =========================================================
+   INDICADORES
+   ========================================================= */
+
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+
+    box-shadow: var(--shadow-sm);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    min-height: 135px;
+
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.stat-icon {
+    font-size: 25px;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    color: var(--primary);
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.stat-label {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* =========================================================
+   MENU ADMIN
+   ========================================================= */
+
+.admin-actions {
+    display: flex;
+    gap: 10px;
+
+    background: var(--surface);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+
+    padding: 8px;
+
+    box-shadow: var(--shadow-sm);
+
+    margin-bottom: 24px;
+}
+
+.admin-actions button {
+    width: auto;
+
+    flex: 1;
+
+    padding: 12px 16px;
+
+    border-radius: 9px;
+}
+
+/* =========================================================
+   CONTEÚDO DO ADMIN
+   ========================================================= */
+
+#admin-content {
+    min-height: 200px;
+}
+
+#admin-content > .flex-between {
+    margin-bottom: 4px;
+}
+
+#admin-content h3 {
+    margin: 0;
+    color: var(--primary);
+    font-size: 21px;
+}
+
+#admin-content .card {
+    margin-bottom: 12px;
+}
+
+/* =========================================================
+   STATUS DE PRODUTOS
+   ========================================================= */
+
+.text-success {
+    color: var(--success-text);
+}
+
+.text-danger {
+    color: var(--danger-text);
+}
+
+/* =========================================================
+   BOTÕES DO ADMIN
+   ========================================================= */
+
+.admin-actions .btn-primary {
+    background: var(--primary);
+}
+
+.admin-actions .btn-secondary {
+    background: #e2e8f0;
+}
+
+/* =========================================================
+   RESPONSIVO ADMIN
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .container-wide {
+        width: calc(100% - 24px);
+        margin: 22px auto;
+    }
+
+    .admin-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-actions {
+        flex-direction: column;
+    }
+
+    .admin-actions button {
+        width: 100%;
+    }
+
+    .stat-card {
+        min-height: 110px;
+    }
+}
