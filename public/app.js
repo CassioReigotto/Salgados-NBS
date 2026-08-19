@@ -1,5 +1,4 @@
 // --- UTILITÁRIOS ---
-// Prevenção XSS
 const esc = (str) => {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -12,7 +11,6 @@ const esc = (str) => {
 
 const formatMoney = (cents) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 
-// Parser robusto compatível com o backend
 const parseCurrencyToCents = (val) => {
     if (!val) return 0;
     const clean = String(val).replace(/[^\d.,]/g, '').replace(',', '.');
@@ -25,6 +23,39 @@ const app = {
     user: null,
     cart: {},
     products: [],
+    
+    // --- CONTROLE DE POLLING ---
+    POLLING_INTERVAL: 3000,
+    pollingTimer: null,
+    isPollingActive: false,
+    lastSnapshot: null,
+
+    startPolling(fn) {
+        this.stopPolling();
+        this.pollingTimer = setInterval(async () => {
+            // Evita race condition se a internet estiver lenta
+            if (this.isPollingActive) return; 
+            
+            this.isPollingActive = true;
+            try {
+                await fn();
+            } catch(e) {
+                console.warn('Polling ignorou um erro temporário:', e.message);
+            } finally {
+                this.isPollingActive = false;
+            }
+        }, this.POLLING_INTERVAL);
+    },
+
+    stopPolling() {
+        if (this.pollingTimer) {
+            clearInterval(this.pollingTimer);
+            this.pollingTimer = null;
+        }
+        this.isPollingActive = false;
+        this.lastSnapshot = null;
+    },
+    // ---------------------------
 
     async request(url, options = {}) {
         options.credentials = 'same-origin';
@@ -56,20 +87,20 @@ const app = {
     },
 
     async logout() {
+        this.stopPolling();
         try { await this.request('/api/auth/logout', { method: 'POST' }); } catch(e){}
         this.user = null;
         document.getElementById('main-header').style.display = 'none';
         this.renderLogin();
     },
 
-    // --- SISTEMA DE MODAL (Sem prompt/alert) ---
+    // --- SISTEMA DE MODAL ---
     showModal(title, bodyHtml, onSubmit) {
         document.getElementById('modal-title').innerText = title;
         document.getElementById('modal-body').innerHTML = bodyHtml;
         document.getElementById('modal-error').innerText = '';
         const submitBtn = document.getElementById('modal-submit');
         
-        // Remove listeners antigos recriando o botão
         const newBtn = submitBtn.cloneNode(true);
         submitBtn.parentNode.replaceChild(newBtn, submitBtn);
         
@@ -98,6 +129,7 @@ const app = {
 
     // --- AUTENTICAÇÃO ---
     renderLogin() {
+        this.stopPolling();
         const html = `
             <div class="container" style="max-width: 400px; margin-top: 2rem;">
                 <div class="card">
@@ -130,12 +162,21 @@ const app = {
     },
 
     // --- ÁREA DO FUNCIONÁRIO ---
-    async renderUserDashboard() {
-        document.getElementById('app-container').innerHTML = '<div class="container">Carregando...</div>';
+    async renderUserDashboard(isPolling = false) {
+        if (!isPolling) {
+            this.stopPolling();
+            document.getElementById('app-container').innerHTML = '<div class="container">Carregando...</div>';
+        }
+
         try {
             const orders = await this.request('/api/orders');
-            let html = `<div class="container"><h2>Meus Pedidos</h2><br>`;
             
+            // Snapshot para evitar recarregar a tela se nada mudou
+            const snapshot = JSON.stringify(orders);
+            if (isPolling && snapshot === this.lastSnapshot) return;
+            this.lastSnapshot = snapshot;
+
+            let html = `<div class="container"><h2>Meus Pedidos</h2><br>`;
             if(orders.length === 0) html += `<p>Nenhum pedido no momento.</p>`;
             
             for (let o of orders) {
@@ -146,20 +187,45 @@ const app = {
             }
             html += `</div>`;
             document.getElementById('app-container').innerHTML = html;
-        } catch(e) { this.showMessage('Erro', e.message); }
+            
+            if (!isPolling) this.startPolling(() => this.renderUserDashboard(true));
+        } catch(e) { 
+            if (!isPolling) this.showMessage('Erro', e.message); 
+            else throw e;
+        }
     },
 
-    async renderOrderUser(orderId) {
+    async renderOrderUser(orderId, isPolling = false) {
+        if (!isPolling) {
+            this.stopPolling();
+            document.getElementById('app-container').innerHTML = '<div class="container">Carregando...</div>';
+        }
+        
         try {
             const data = await this.request(`/api/orders/${orderId}`);
             const { order, participations } = data;
-            const myOrder = participations[0] || null;
-            this.products = await this.request('/api/products');
+            const prods = await this.request('/api/products');
             
-            this.cart = {};
-            this.products.forEach(p => this.cart[p.id] = 0);
-            if (myOrder && myOrder.status !== 'CANCELLED') {
-                myOrder.items.forEach(i => this.cart[i.product_id] = i.quantity);
+            // Snapshot inteligente: Compara os dados que vieram do banco
+            const snapshot = JSON.stringify({ order, participations, prods });
+            if (isPolling && snapshot === this.lastSnapshot) return;
+            this.lastSnapshot = snapshot;
+
+            this.products = prods;
+            const myOrder = participations[0] || null;
+            
+            // Se for o primeiro carregamento, reseta o carrinho baseado no banco.
+            // Se for polling, mantém o carrinho intacto, apenas adiciona produtos novos zerados.
+            if (!isPolling) {
+                this.cart = {};
+                this.products.forEach(p => this.cart[p.id] = 0);
+                if (myOrder && myOrder.status !== 'CANCELLED') {
+                    myOrder.items.forEach(i => this.cart[i.product_id] = i.quantity);
+                }
+            } else {
+                this.products.forEach(p => {
+                    if (this.cart[p.id] === undefined) this.cart[p.id] = 0;
+                });
             }
 
             const isOpen = order.status === 'OPEN';
@@ -223,12 +289,19 @@ const app = {
 
             document.getElementById('app-container').innerHTML = html;
             if (isOpen) this.updateSubtotal();
-        } catch(e) { this.showMessage('Erro', e.message); }
+
+            if (!isPolling) this.startPolling(() => this.renderOrderUser(orderId, true));
+
+        } catch(e) { 
+            if (!isPolling) this.showMessage('Erro', e.message); 
+            else throw e;
+        }
     },
 
     changeQty(pid, delta) {
         if (this.cart[pid] + delta >= 0) {
             this.cart[pid] += delta;
+            // Atualiza o DOM imediatamente sem esperar o polling
             document.getElementById(`qty-${pid}`).innerText = this.cart[pid];
             this.updateSubtotal();
         }
@@ -237,21 +310,31 @@ const app = {
     updateSubtotal() {
         let total = 0;
         this.products.forEach(p => total += (this.cart[p.id] || 0) * p.price_cents);
-        document.getElementById('user-subtotal').innerText = formatMoney(total);
+        const subEl = document.getElementById('user-subtotal');
+        if (subEl) subEl.innerText = formatMoney(total);
     },
 
     async confirmParticipation(orderId) {
         try {
             const items = Object.keys(this.cart).filter(id => this.cart[id] > 0).map(id => ({ productId: id, quantity: this.cart[id] }));
             if (items.length === 0) return this.showMessage('Atenção', 'Selecione pelo menos um item para confirmar o pedido.');
+            
+            // Pausa o polling temporariamente durante a confirmação para evitar concorrência
+            this.stopPolling();
             await this.request(`/api/orders/${orderId}/participate`, { method: 'POST', body: { items } });
             this.showMessage('Sucesso', 'Pedido confirmado ✓');
+            
+            // Recarrega a tela, o que reiniciará o polling automaticamente
             this.renderOrderUser(orderId);
-        } catch(e) { this.showMessage('Erro', e.message); }
+        } catch(e) { 
+            this.showMessage('Erro', e.message); 
+            this.startPolling(() => this.renderOrderUser(orderId, true)); // Retoma se falhar
+        }
     },
 
     cancelParticipation(orderId) {
         this.showModal('Cancelar Pedido', '<p>Deseja realmente cancelar sua participação neste pedido?</p>', async () => {
+            this.stopPolling();
             await this.request(`/api/orders/${orderId}/cancel`, { method: 'POST' });
             this.renderOrderUser(orderId);
         });
@@ -259,6 +342,7 @@ const app = {
 
     // --- ÁREA DO ADMINISTRADOR ---
     async renderAdminDashboard() {
+        this.stopPolling();
         const html = `
         <div class="container">
             <h2>Painel Admin</h2>
@@ -274,9 +358,14 @@ const app = {
     },
 
     // ADMIN: PRODUTOS
-    async adminViewProducts() {
+    async adminViewProducts(isPolling = false) {
+        if (!isPolling) this.stopPolling();
         try {
             const prods = await this.request('/api/products');
+            const snapshot = JSON.stringify(prods);
+            if (isPolling && snapshot === this.lastSnapshot) return;
+            this.lastSnapshot = snapshot;
+
             let html = `<div class="flex-between"><h3>Produtos</h3><button class="btn-sm btn-primary" onclick="app.adminModalProduct()">+ Novo</button></div><br>`;
             prods.forEach(p => {
                 html += `<div class="card flex-between">
@@ -288,7 +377,9 @@ const app = {
                 </div>`;
             });
             document.getElementById('admin-content').innerHTML = html;
-        } catch(e) { this.showMessage('Erro', e.message); }
+            
+            if (!isPolling) this.startPolling(() => this.adminViewProducts(true));
+        } catch(e) { if (!isPolling) this.showMessage('Erro', e.message); else throw e; }
     },
 
     adminModalProduct(id = null, name = '', priceCents = 0, isActive = true) {
@@ -308,14 +399,19 @@ const app = {
             const method = id ? 'PUT' : 'POST';
             const url = id ? `/api/products/${id}` : '/api/products';
             await this.request(url, { method, body });
-            this.adminViewProducts();
+            this.adminViewProducts(); // Isso fará stopPolling e resetará o render
         });
     },
 
     // ADMIN: USUÁRIOS
-    async adminViewUsers() {
+    async adminViewUsers(isPolling = false) {
+        if (!isPolling) this.stopPolling();
         try {
             const users = await this.request('/api/users');
+            const snapshot = JSON.stringify(users);
+            if (isPolling && snapshot === this.lastSnapshot) return;
+            this.lastSnapshot = snapshot;
+
             let html = `<div class="flex-between"><h3>Usuários</h3><button class="btn-sm btn-primary" onclick="app.adminModalUser()">+ Novo</button></div><br>`;
             users.forEach(u => {
                 html += `<div class="card flex-between">
@@ -327,7 +423,9 @@ const app = {
                 </div>`;
             });
             document.getElementById('admin-content').innerHTML = html;
-        } catch(e) { this.showMessage('Erro', e.message); }
+            
+            if (!isPolling) this.startPolling(() => this.adminViewUsers(true));
+        } catch(e) { if (!isPolling) this.showMessage('Erro', e.message); else throw e; }
     },
 
     adminModalUser(id = null, name = '', username = '', role = 'USER', isActive = true) {
@@ -351,7 +449,6 @@ const app = {
                 role: document.getElementById('usr-role').value,
                 is_active: document.getElementById('usr-active').checked
             };
-            // Validação local rápida
             if (!id && body.password.length < 6) throw new Error('A senha deve ter no mínimo 6 caracteres.');
             
             const method = id ? 'PUT' : 'POST';
@@ -361,10 +458,15 @@ const app = {
         });
     },
 
-    // ADMIN: PEDIDOS
-    async adminViewOrders() {
+    // ADMIN: PEDIDOS GERAIS
+    async adminViewOrders(isPolling = false) {
+        if (!isPolling) this.stopPolling();
         try {
             const orders = await this.request('/api/orders');
+            const snapshot = JSON.stringify(orders);
+            if (isPolling && snapshot === this.lastSnapshot) return;
+            this.lastSnapshot = snapshot;
+
             let html = `<div class="flex-between"><h3>Pedidos Gerais</h3><button class="btn-sm btn-primary" onclick="app.adminModalOrder()">+ Novo Pedido</button></div><br>`;
             orders.forEach(o => {
                 html += `<div class="card flex-between" style="cursor:pointer" onclick="app.adminManageOrder('${o.id}')">
@@ -373,7 +475,9 @@ const app = {
                 </div>`;
             });
             document.getElementById('admin-content').innerHTML = html;
-        } catch(e) { this.showMessage('Erro', e.message); }
+            
+            if (!isPolling) this.startPolling(() => this.adminViewOrders(true));
+        } catch(e) { if (!isPolling) this.showMessage('Erro', e.message); else throw e; }
     },
 
     adminModalOrder() {
@@ -392,9 +496,14 @@ const app = {
     },
 
     // ADMIN: DETALHE DO PEDIDO
-    async adminManageOrder(orderId) {
+    async adminManageOrder(orderId, isPolling = false) {
+        if (!isPolling) this.stopPolling();
         try {
             const data = await this.request(`/api/orders/${orderId}`);
+            const snapshot = JSON.stringify(data);
+            if (isPolling && snapshot === this.lastSnapshot) return;
+            this.lastSnapshot = snapshot;
+
             const { order, participations } = data;
             
             let html = `<button class="btn-sm btn-secondary" onclick="app.adminViewOrders()" style="margin-bottom:1rem;">← Voltar</button>`;
@@ -405,7 +514,6 @@ const app = {
                 <p style="margin-top:0.5rem">Taxa Informada: ${formatMoney(order.delivery_fee_cents)}</p>
             </div>`;
 
-            // Máquina de estados UI
             if (order.status === 'OPEN') {
                 html += `<button class="btn-danger" style="margin-bottom:1rem; padding:1rem;" onclick="app.adminCloseOrder('${order.id}')">FECHAR PEDIDO E CALCULAR RATEIO</button>`;
             } else {
@@ -450,7 +558,7 @@ const app = {
                     <hr>
                     <div class="flex-between">
                         <span class="badge ${esc(p.payment_status)}">${esc(p.payment_status)}</span>
-                        ${order.status !== 'OPEN' ? `<button class="btn-sm btn-secondary" onclick="app.adminTogglePayment('${p.id}', '${p.payment_status}')">Alterar Pagto</button>` : ''}
+                        ${order.status !== 'OPEN' ? `<button class="btn-sm btn-secondary" onclick="app.adminTogglePayment('${p.id}', '${p.payment_status}', '${order.id}')">Alterar Pagto</button>` : ''}
                     </div>
                 </div>`;
             });
@@ -468,12 +576,14 @@ const app = {
             }
 
             document.getElementById('admin-content').innerHTML = html;
-
-        } catch(e) { this.showMessage('Erro', e.message); }
+            
+            if (!isPolling) this.startPolling(() => this.adminManageOrder(orderId, true));
+        } catch(e) { if (!isPolling) this.showMessage('Erro', e.message); else throw e; }
     },
 
     adminCloseOrder(orderId) {
         this.showModal('Fechar Pedido', '<p>Atenção! Isso trancará os pedidos dos funcionários e fará o cálculo exato do rateio de entrega com base no número final de participantes. Deseja continuar?</p>', async () => {
+            this.stopPolling();
             await this.request(`/api/orders/${orderId}/close`, { method: 'POST' });
             this.adminManageOrder(orderId);
         });
@@ -481,17 +591,18 @@ const app = {
 
     adminChangeStatus(orderId, newStatus) {
         this.showModal('Avançar Status', `<p>Deseja avançar o pedido para o status <strong>${newStatus}</strong>?</p>`, async () => {
+            this.stopPolling();
             await this.request(`/api/orders/${orderId}/status`, { method: 'PATCH', body: { status: newStatus } });
             this.adminManageOrder(orderId);
         });
     },
 
-    adminTogglePayment(userOrderId, currentStatus) {
+    adminTogglePayment(userOrderId, currentStatus, orderId) {
         const nextStatus = currentStatus === 'PAID' ? 'PENDING' : 'PAID';
         this.showModal('Atualizar Pagamento', `<p>Marcar pagamento como <strong>${nextStatus}</strong>?</p>`, async () => {
+            this.stopPolling();
             await this.request(`/api/user-orders/${userOrderId}/payment`, { method: 'PATCH', body: { payment_status: nextStatus } });
-            // Recarrega a view atual simulando um clique
-            document.querySelector(`[onclick^="app.adminManageOrder"]`)?.click(); 
+            this.adminManageOrder(orderId);
         });
     }
 };
