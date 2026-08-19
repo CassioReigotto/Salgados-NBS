@@ -691,3 +691,213 @@ hr {
         min-height: 110px;
     }
 }
+
+/* =========================================================
+   CORREÇÕES — LOGIN + MODAL
+   ========================================================= */
+
+/* =========================================================
+   LOGIN
+   ========================================================= */
+
+.login-container {
+    width: 100%;
+    min-height: calc(100vh - 100px);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 30px 20px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+
+    background: var(--surface);
+
+    border: 1px solid var(--border);
+    border-radius: 18px;
+
+    padding: 32px;
+
+    box-shadow: var(--shadow);
+
+    animation: fadeIn 0.2s ease;
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 26px;
+}
+
+.login-logo .emoji {
+    display: block;
+
+    font-size: 42px;
+
+    margin-bottom: 8px;
+}
+
+.login-logo h2 {
+    margin: 0;
+
+    color: var(--primary);
+
+    font-size: 25px;
+    font-weight: 800;
+}
+
+.login-logo p {
+    margin: 7px 0 0;
+
+    color: var(--text-muted);
+
+    font-size: 14px;
+}
+
+.login-card input {
+    margin-bottom: 12px;
+}
+
+.login-card .btn-primary {
+    width: 100%;
+    margin-top: 4px;
+}
+
+/* =========================================================
+   MODAL — ESTRUTURA
+   ========================================================= */
+
+#modal-overlay {
+    position: fixed !important;
+
+    inset: 0 !important;
+
+    width: 100vw !important;
+    height: 100vh !important;
+
+    display: none;
+
+    align-items: center !important;
+    justify-content: center !important;
+
+    padding: 20px;
+
+    background: rgba(15, 23, 42, 0.50) !important;
+
+    backdrop-filter: blur(4px);
+
+    z-index: 9999;
+}
+
+/* Caixa do modal */
+
+#modal-overlay .modal,
+#modal-overlay > div {
+    width: 100%;
+    max-width: 480px;
+
+    max-height: calc(100vh - 40px);
+
+    overflow-y: auto;
+
+    background: var(--surface);
+
+    border: 1px solid var(--border);
+
+    border-radius: 16px;
+
+    padding: 24px;
+
+    box-shadow:
+        0 20px 50px rgba(15, 23, 42, 0.20);
+
+    animation: modalIn 0.18s ease;
+}
+
+#modal-overlay h2,
+#modal-overlay h3 {
+    margin-top: 0;
+
+    color: var(--primary);
+}
+
+/* Conteúdo */
+
+#modal-body {
+    margin-top: 14px;
+}
+
+/* Erro do modal */
+
+#modal-error {
+    color: var(--danger-text);
+
+    font-size: 13px;
+
+    margin-top: 10px;
+}
+
+/* Rodapé do modal */
+
+#modal-overlay .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+
+    margin-top: 20px;
+}
+
+/* Caso os botões estejam diretamente no modal */
+
+#modal-overlay button {
+    margin-top: 10px;
+}
+
+#modal-overlay #modal-submit {
+    width: 100%;
+}
+
+/* =========================================================
+   ANIMAÇÃO DO MODAL
+   ========================================================= */
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .login-container {
+        min-height: calc(100vh - 80px);
+        padding: 20px 12px;
+    }
+
+    .login-card {
+        padding: 24px 20px;
+    }
+
+    #modal-overlay {
+        padding: 12px;
+    }
+
+    #modal-overlay .modal,
+    #modal-overlay > div {
+        max-width: 100%;
+        padding: 20px;
+    }
+}
