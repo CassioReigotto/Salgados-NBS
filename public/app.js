@@ -405,20 +405,97 @@ const app = {
 
     // --- ÁREA DO ADMINISTRADOR ---
     async renderAdminDashboard() {
-        this.stopPolling();
-        const html = `
-        <div class="container">
-            <h2>Painel Admin</h2>
-            <div class="grid" style="margin-top:1rem">
-                <button class="btn-secondary" onclick="app.adminViewOrders()">Pedidos</button>
-                <button class="btn-secondary" onclick="app.adminViewProducts()">Produtos</button>
-                <button class="btn-secondary" onclick="app.adminViewUsers()">Usuários</button>
+    this.stopPolling();
+
+    const html = `
+        <div class="container-wide">
+
+            <div class="admin-header">
+                <h2>Dashboard Administrativo</h2>
+                <p>Gerencie pedidos, produtos e usuários.</p>
             </div>
-            <div id="admin-content" style="margin-top:2rem;"></div>
-        </div>`;
-        document.getElementById('app-container').innerHTML = html;
-        this.adminViewOrders();
-    },
+
+            <div class="admin-stats">
+
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div id="admin-stat-orders" class="stat-value">-</div>
+                    <div class="stat-label">Pedidos</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div id="admin-stat-users" class="stat-value">-</div>
+                    <div class="stat-label">Usuários</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div id="admin-stat-total" class="stat-value">R$ 0,00</div>
+                    <div class="stat-label">Arrecadação</div>
+                </div>
+
+            </div>
+
+            <div class="admin-actions">
+
+                <button
+                    class="btn-primary"
+                    onclick="app.adminViewOrders()"
+                >
+                    📦 Pedidos
+                </button>
+
+                <button
+                    class="btn-secondary"
+                    onclick="app.adminViewProducts()"
+                >
+                    🥟 Produtos
+                </button>
+
+                <button
+                    class="btn-secondary"
+                    onclick="app.adminViewUsers()"
+                >
+                    👥 Usuários
+                </button>
+
+            </div>
+
+            <div
+                id="admin-content"
+                style="margin-top: 1.5rem;"
+            ></div>
+
+        </div>
+    `;
+
+    document.getElementById('app-container').innerHTML = html;
+
+    // Carrega os indicadores sem criar novas APIs
+    try {
+        const [orders, users] = await Promise.all([
+            this.request('/api/orders'),
+            this.request('/api/users')
+        ]);
+
+        document.getElementById('admin-stat-orders').innerText =
+            orders.length;
+
+        document.getElementById('admin-stat-users').innerText =
+            users.length;
+
+        // Mantemos a arrecadação como informação complementar.
+        // O valor exato continuará sendo calculado no detalhe do pedido.
+        document.getElementById('admin-stat-total').innerText =
+            '—';
+
+    } catch (e) {
+        console.warn('Não foi possível carregar indicadores:', e.message);
+    }
+
+    this.adminViewOrders();
+},
 
     // ADMIN: PRODUTOS
     async adminViewProducts(isPolling = false) {
