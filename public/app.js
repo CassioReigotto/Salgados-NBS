@@ -129,19 +129,27 @@ const app = {
 
     // --- AUTENTICAÇÃO ---
     renderLogin() {
-        this.stopPolling();
-        const html = `
-            <div class="container" style="max-width: 400px; margin-top: 2rem;">
-                <div class="card">
-                    <h2>Entrar</h2><br>
-                    <input type="text" id="login-user" placeholder="Username">
-                    <input type="password" id="login-pass" placeholder="Senha">
-                    <button class="btn-primary" onclick="app.doLogin()">Acessar</button>
+    this.stopPolling();
+
+    const html = `
+        <div class="container" style="max-width: 400px; margin-top: 2rem;">
+            <div class="card">
+                <h2>Entrar</h2><br>
+
+                <form onsubmit="event.preventDefault(); app.doLogin();">
+                    <input type="text" id="login-user" placeholder="Username" autocomplete="username">
+
+                    <input type="password" id="login-pass" placeholder="Senha" autocomplete="current-password">
+
+                    <button type="submit" class="btn-primary">Acessar</button>
+
                     <div id="login-error" class="error-text"></div>
-                </div>
-            </div>`;
-        document.getElementById('app-container').innerHTML = html;
-    },
+                </form>
+            </div>
+        </div>`;
+
+    document.getElementById('app-container').innerHTML = html;
+},
 
     async doLogin() {
         const btn = document.querySelector('button');
@@ -315,22 +323,41 @@ const app = {
     },
 
     async confirmParticipation(orderId) {
-        try {
-            const items = Object.keys(this.cart).filter(id => this.cart[id] > 0).map(id => ({ productId: id, quantity: this.cart[id] }));
-            if (items.length === 0) return this.showMessage('Atenção', 'Selecione pelo menos um item para confirmar o pedido.');
-            
-            // Pausa o polling temporariamente durante a confirmação para evitar concorrência
-            this.stopPolling();
-            await this.request(`/api/orders/${orderId}/participate`, { method: 'POST', body: { items } });
-            this.showMessage('Sucesso', 'Pedido confirmado ✓');
-            
-            // Recarrega a tela, o que reiniciará o polling automaticamente
-            this.renderOrderUser(orderId);
-        } catch(e) { 
-            this.showMessage('Erro', e.message); 
-            this.startPolling(() => this.renderOrderUser(orderId, true)); // Retoma se falhar
+    try {
+        const items = Object.keys(this.cart)
+            .filter(id => this.cart[id] > 0)
+            .map(id => ({
+                productId: id,
+                quantity: this.cart[id]
+            }));
+
+        if (items.length === 0) {
+            return this.showMessage(
+                'Atenção',
+                'Selecione pelo menos um item para confirmar o pedido.'
+            );
         }
-    },
+
+        this.stopPolling();
+
+        await this.request(`/api/orders/${orderId}/participate`, {
+            method: 'POST',
+            body: { items }
+        });
+
+        this.showModal(
+            'Sucesso',
+            '<p>Pedido confirmado ✓</p>',
+            async () => {
+                await this.renderUserDashboard();
+            }
+        );
+
+    } catch(e) {
+        this.showMessage('Erro', e.message);
+        this.startPolling(() => this.renderOrderUser(orderId, true));
+    }
+},
 
     cancelParticipation(orderId) {
         this.showModal('Cancelar Pedido', '<p>Deseja realmente cancelar sua participação neste pedido?</p>', async () => {
