@@ -609,10 +609,29 @@ const app = {
 
             let html = `<div class="flex-between"><h3>Pedidos Gerais</h3><button class="btn-sm btn-primary" onclick="app.adminModalOrder()">+ Novo Pedido</button></div><br>`;
             orders.forEach(o => {
-                html += `<div class="card flex-between" style="cursor:pointer" onclick="app.adminManageOrder('${o.id}')">
-                    <strong>${esc(o.title)}</strong>
-                    <span class="badge ${esc(o.status)}">${esc(o.status)}</span>
-                </div>`;
+                html += `
+    <div
+        class="card card-hover"
+        style="cursor:pointer;"
+        onclick="app.adminManageOrder('${o.id}')"
+    >
+        <div class="flex-between">
+
+            <div>
+                <strong>${esc(o.title)}</strong>
+
+                <div class="text-muted" style="margin-top:0.3rem;">
+                    Pedido geral
+                </div>
+            </div>
+
+            <span class="badge ${esc(o.status)}">
+                ${esc(o.status)}
+            </span>
+
+        </div>
+    </div>
+`;
             });
             document.getElementById('admin-content').innerHTML = html;
             
