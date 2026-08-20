@@ -24,7 +24,7 @@ const loginAttempts = new Map();
 const loginRateLimit = (req, res, next) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
-    const windowMs = 15 * 60 * 1000; // 15 minutos
+    const windowMs = 1 * 60 * 1000; // 15 minutos
     
     let attempts = loginAttempts.get(ip) || [];
     attempts = attempts.filter(time => now - time < windowMs);
