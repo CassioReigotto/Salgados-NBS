@@ -669,7 +669,115 @@ const app = {
             this.adminViewOrders();
         });
     },
+// --- RESUMO DO PEDIDO PARA COPIAR ---
+    async copyOrderSummary(orderId, compact = false) {
+        try {
+            const data = await this.request(`/api/orders/${orderId}`);
+            const { order, participations } = data;
 
+            const participantes = participations.filter(
+                p => p.status !== 'CANCELLED'
+            );
+
+            if (participantes.length === 0) {
+                return this.showMessage(
+                    'Atenção',
+                    'Não existem participantes neste pedido.'
+                );
+            }
+
+            let texto = '';
+
+            if (compact) {
+                // ==========================================
+                // VERSÃO CURTA - COBRANÇA
+                // ==========================================
+
+                texto += `🍴 ${order.title}\n\n`;
+
+                let totalGeral = 0;
+
+                participantes.forEach(p => {
+                    let subtotal = 0;
+
+                    p.items.forEach(i => {
+                        subtotal += i.quantity * i.unit_price_cents;
+                    });
+
+                    const total = subtotal + p.applied_delivery_fee_cents;
+                    totalGeral += total;
+
+                    texto += `${p.user_name} — ${formatMoney(total)}\n`;
+                });
+
+                texto += `\n`;
+                texto += `💰 Total: ${formatMoney(totalGeral)}`;
+
+            } else {
+                // ==========================================
+                // VERSÃO COMPLETA
+                // ==========================================
+
+                texto += `📦 ${order.title}\n`;
+                texto += `\n`;
+
+                let totalSalgados = 0;
+                let totalTaxas = 0;
+                let totalGeral = 0;
+
+                participantes.forEach(p => {
+                    let subtotal = 0;
+
+                    texto += `👤 ${p.user_name}\n`;
+
+                    p.items.forEach(i => {
+                        const totalItem =
+                            i.quantity * i.unit_price_cents;
+
+                        subtotal += totalItem;
+
+                        texto +=
+                            `  ${i.quantity}x ${i.product_name} - ${formatMoney(totalItem)}\n`;
+                    });
+
+                    const taxa = p.applied_delivery_fee_cents;
+                    const total = subtotal + taxa;
+
+                    totalSalgados += subtotal;
+                    totalTaxas += taxa;
+                    totalGeral += total;
+
+                    texto +=
+                        `  Taxa: ${formatMoney(taxa)}\n`;
+
+                    texto +=
+                        `  TOTAL: ${formatMoney(total)}\n`;
+
+                    texto += `\n`;
+                });
+
+                texto += `━━━━━━━━━━━━━━━━━━\n`;
+                texto += `🍴 Salgados: ${formatMoney(totalSalgados)}\n`;
+                texto += `🚚 Entrega: ${formatMoney(totalTaxas)}\n`;
+                texto += `💰 TOTAL GERAL: ${formatMoney(totalGeral)}`;
+            }
+
+            await navigator.clipboard.writeText(texto);
+
+            this.showMessage(
+                'Copiado!',
+                compact
+                    ? 'Resumo de cobrança copiado para a área de transferência.'
+                    : 'Resumo completo copiado para a área de transferência.'
+            );
+
+        } catch (e) {
+            this.showMessage(
+                'Erro',
+                'Não foi possível copiar o resumo: ' + e.message
+            );
+        }
+    },
     // ADMIN: DETALHE DO PEDIDO
     async adminManageOrder(orderId, isPolling = false) {
         if (!isPolling) this.stopPolling();
@@ -692,12 +800,47 @@ const app = {
             if (order.status === 'OPEN') {
                 html += `<button class="btn-danger" style="margin-bottom:1rem; padding:1rem;" onclick="app.adminCloseOrder('${order.id}')">FECHAR PEDIDO E CALCULAR RATEIO</button>`;
             } else {
-                html += `<div class="grid" style="margin-bottom:1rem">
-                    <button class="${order.status === 'CLOSED' ? 'btn-primary' : 'btn-secondary'}" ${order.status !== 'CLOSED' ? 'disabled' : ''} onclick="app.adminChangeStatus('${order.id}', 'AWAITING_PAYMENT')">Aguardar Pagamento</button>
-                    <button class="${order.status === 'AWAITING_PAYMENT' ? 'btn-primary' : 'btn-secondary'}" ${order.status !== 'AWAITING_PAYMENT' ? 'disabled' : ''} onclick="app.adminChangeStatus('${order.id}', 'PLACED')">Realizado no Fornecedor</button>
-                    <button class="${order.status === 'PLACED' ? 'btn-success' : 'btn-secondary'}" ${order.status !== 'PLACED' ? 'disabled' : ''} onclick="app.adminChangeStatus('${order.id}', 'RECEIVED')">Recebido ✅</button>
-                </div>`;
-            }
+
+    if (order.status === 'CLOSED' ||
+        order.status === 'AWAITING_PAYMENT' ||
+        order.status === 'PLACED' ||
+        order.status === 'RECEIVED') {
+
+        html += `
+            <div class="card" style="margin-bottom:1rem;">
+                <h4>📋 Resumo do Pedido</h4>
+
+                <p class="text-muted" style="margin:0.5rem 0 1rem;">
+                    Copie as informações do pedido para enviar no grupo.
+                </p>
+
+                <div class="grid">
+                    <button
+                        class="btn-primary"
+                        onclick="app.copyOrderSummary('${order.id}', false)"
+                    >
+                        📋 Copiar Resumo Completo
+                    </button>
+
+                    <button
+                        class="btn-secondary"
+                        onclick="app.copyOrderSummary('${order.id}', true)"
+                    >
+                        💰 Copiar Cobrança
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    html += `<div class="grid" style="margin-bottom:1rem">
+        <button class="${order.status === 'CLOSED' ? 'btn-primary' : 'btn-secondary'}" ${order.status !== 'CLOSED' ? 'disabled' : ''} onclick="app.adminChangeStatus('${order.id}', 'AWAITING_PAYMENT')">Aguardar Pagamento</button>
+
+        <button class="${order.status === 'AWAITING_PAYMENT' ? 'btn-primary' : 'btn-secondary'}" ${order.status !== 'AWAITING_PAYMENT' ? 'disabled' : ''} onclick="app.adminChangeStatus('${order.id}', 'PLACED')">Realizado no Fornecedor</button>
+
+        <button class="${order.status === 'PLACED' ? 'btn-success' : 'btn-secondary'}" ${order.status !== 'PLACED' ? 'disabled' : ''} onclick="app.adminChangeStatus('${order.id}', 'RECEIVED')">Recebido ✅</button>
+    </div>`;
+}
 
             html += `<h4>Participantes</h4><br>`;
             
