@@ -933,6 +933,17 @@ const app = {
         </div>
     `;
 }
+            if (participantesValidos === 0) {
+                html += `<p>Nenhum participante confirmado.</p>`;
+            } else {
+                html += `<div class="card" style="background:#e0f2fe; border-color:#bae6fd;">
+                    <h3>RESUMO FINAL</h3><br>
+                    <div class="flex-between"><span>Total Salgados:</span> <span>${formatMoney(totalSalgados)}</span></div>
+                    <div class="flex-between"><span>Total Taxas Rateadas:</span> <span>${formatMoney(totalTaxas)}</span></div>
+                    <hr>
+                    <div class="flex-between"><h3>ARRECADAÇÃO TOTAL:</h3> <h3>${formatMoney(totalSalgados + totalTaxas)}</h3></div>
+                </div>`;
+            }
             document.getElementById('admin-content').innerHTML = html;
             
             if (!isPolling) this.startPolling(() => this.adminManageOrder(orderId, true));
