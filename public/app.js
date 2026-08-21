@@ -725,6 +725,7 @@ const app = {
                 let totalTaxas = 0;
                 let totalGeral = 0;
 
+
                 participantes.forEach(p => {
                     let subtotal = 0;
 
@@ -848,15 +849,32 @@ const app = {
             let totalTaxas = 0;
             let participantesValidos = 0;
 
+            // Resumo dos produtos para compra
+            const productSummary = {};
+
             participations.forEach(p => {
                 if (p.status === 'CANCELLED') return;
                 participantesValidos++;
                 
                 let sub = 0;
                 let itensStr = p.items.map(i => {
-                    sub += i.quantity * i.unit_price_cents;
-                    return `${i.quantity}x ${esc(i.product_name)}`;
-                }).join(', ');
+    sub += i.quantity * i.unit_price_cents;
+
+    // Agrupa quantidade por produto
+    if (!productSummary[i.product_id]) {
+        productSummary[i.product_id] = {
+            name: i.product_name,
+            quantity: 0,
+            total_cents: 0
+        };
+    }
+
+    productSummary[i.product_id].quantity += i.quantity;
+    productSummary[i.product_id].total_cents +=
+        i.quantity * i.unit_price_cents;
+
+    return `${i.quantity}x ${esc(i.product_name)}`;
+}).join(', ');
                 
                 totalSalgados += sub;
                 totalTaxas += p.applied_delivery_fee_cents;
@@ -881,18 +899,40 @@ const app = {
                 </div>`;
             });
 
-            if (participantesValidos === 0) {
-                html += `<p>Nenhum participante confirmado.</p>`;
-            } else {
-                html += `<div class="card" style="background:#e0f2fe; border-color:#bae6fd;">
-                    <h3>RESUMO FINAL</h3><br>
-                    <div class="flex-between"><span>Total Salgados:</span> <span>${formatMoney(totalSalgados)}</span></div>
-                    <div class="flex-between"><span>Total Taxas Rateadas:</span> <span>${formatMoney(totalTaxas)}</span></div>
-                    <hr>
-                    <div class="flex-between"><h3>ARRECADAÇÃO TOTAL:</h3> <h3>${formatMoney(totalSalgados + totalTaxas)}</h3></div>
-                </div>`;
-            }
+           if (participantesValidos > 0) {
+    html += `
+        <div class="card">
+            <h3>📊 RESUMO DOS SALGADOS</h3>
+            <br>
+    `;
 
+    let totalQuantidade = 0;
+
+    Object.values(productSummary).forEach(product => {
+        totalQuantidade += product.quantity;
+
+        html += `
+            <div class="flex-between" style="margin-bottom:0.5rem;">
+                <span>
+                    <strong>${esc(product.name)}</strong>
+                </span>
+                <span>
+                    ${product.quantity} unidade${product.quantity !== 1 ? 's' : ''}
+                    — ${formatMoney(product.total_cents)}
+                </span>
+            </div>
+        `;
+    });
+
+    html += `
+            <hr>
+            <div class="flex-between">
+                <strong>TOTAL DE SALGADOS:</strong>
+                <strong>${totalQuantidade} unidades</strong>
+            </div>
+        </div>
+    `;
+}
             document.getElementById('admin-content').innerHTML = html;
             
             if (!isPolling) this.startPolling(() => this.adminManageOrder(orderId, true));
